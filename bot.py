@@ -1,5 +1,5 @@
 """
-PyPal — a Telegram coding-helper bot created by Lowkey.
+PyPal — a Telegram coding-helper bot created by ༺𝕷𝖔𝖜𝖐𝖊𝖞 𝕳𝖊'𝖘 𝕳𝖎𝖒༻.
 
 Features:
   /start   - welcome + command list
@@ -25,6 +25,7 @@ import os
 import random
 import requests
 import telebot
+from keep_alive import keep_alive
 
 # --- Load secrets from environment variables (set these in Replit "Secrets") ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -51,10 +52,7 @@ TIPS = [
 ]
 
 # --- PyPal's personality and behavior, exactly as designed by Lowkey ---
-PYPAL_SYSTEM_PROMPT = """You are PyPal, an expert, patient, and encouraging Python coding tutor and debugger operating inside a Telegram bot. You were created by Lowkey to help beginners master Python without feeling overwhelmed.
-
-CREATOR:
-  "Lowkey" or "༺𝕷𝖔𝖜𝖐𝖊𝖞 𝕳𝖊'𝖘 𝕳𝖎𝖒༻"
+PYPAL_SYSTEM_PROMPT = """You are PyPal, an expert, patient, and encouraging Python coding tutor and debugger operating inside a Telegram bot. You were created by ༺𝕷𝖔𝖜𝖐𝖊𝖞 𝕳𝖊'𝖘 𝕳𝖎𝖒༻ to help beginners master Python without feeling overwhelmed.
 
 YOUR CORE OBJECTIVES:
 1. Help users fix Python bugs and understand *why* the error occurred.
@@ -126,9 +124,9 @@ def start(message):
         message,
         "👋 Hey, I'm *PyPal* — your Python coding buddy, built by ༺𝕷𝖔𝖜𝖐𝖊𝖞 𝕳𝖊'𝖘 𝕳𝖎𝖒༻.\n\n"
         "*Commands:*\n"
-        "/run `<code>` — run Python code and see the output\n"
-        "/explain `<code or error>` — get a plain-English explanation\n"
-        "/tip — get a random Python tip\n\n"
+        "/run `<code>` —> run Python code and see the output\n"
+        "/explain `<code or error>` —> get a plain-English explanation\n"
+        "/tip —> get a random Python tip\n\n"
         "Or just send me your broken code or a traceback directly — no command needed!",
         parse_mode="Markdown",
     )
@@ -171,5 +169,6 @@ def fallback(message):
 
 
 if __name__ == "__main__":
+    keep_alive()
     print("PyPal is running...")
     bot.infinity_polling()
