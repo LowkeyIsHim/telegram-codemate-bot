@@ -27,7 +27,6 @@ import requests
 import telebot
 from telebot import types
 from dotenv import load_dotenv
-from keep_alive import keep_alive
 
 load_dotenv()  # reads the .env file sitting next to this script
 
@@ -183,6 +182,5 @@ def fallback(message):
 
 
 if __name__ == "__main__":
-    keep_alive()
     print("PyPal is running...")
     bot.infinity_polling()
