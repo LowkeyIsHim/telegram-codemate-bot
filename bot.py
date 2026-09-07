@@ -11,7 +11,7 @@ Features:
 
 Cost: €0.
   - pyTelegramBotAPI library: free/open-source
-  - Piston API (code execution): free, no signup needed
+  - Code execution: runs directly on this server, no external API needed
   - Gemini API (AI answers): free tier, no credit card required, generous daily quota
 
 SECURITY NOTE (relevant since you're headed into pentesting!):
@@ -23,6 +23,7 @@ SECURITY NOTE (relevant since you're headed into pentesting!):
 
 import os
 import random
+import subprocess
 import requests
 import telebot
 from telebot import types
@@ -77,7 +78,7 @@ TEACHING STYLE & RULES:
 TONE:
 Supportive, calm, knowledgeable, and practical.
 
-PLATFORM CONSTRAINT: Users can test code themselves via this bot's /run command, which executes single-file Python using only the standard library (no pip installs, no multi-file projects). If a fix needs an external package, say so plainly rather than assuming /run can handle it.
+PLATFORM CONSTRAINT: Users can test code themselves via this bot's /run command, which executes single-file Python directly on the server (standard library only — no pip installs). If a fix needs an external package, say so plainly rather than assuming /run can handle it.
 """
 
 
@@ -102,20 +103,26 @@ def ask_pypal(prompt: str) -> str:
 
 
 def run_python_code(code: str) -> str:
-    """Run Python code remotely (free, no signup) via the Piston API."""
-    url = "https://emkc.org/api/v2/piston/execute"
-    payload = {
-        "language": "python",
-        "version": "3.10.0",
-        "files": [{"content": code}],
-    }
+    """Run Python code directly on this server (no external API needed).
+
+    SECURITY NOTE: this executes whatever code is sent to /run, in the same
+    container as the bot. That's fine for a personal bot only you use — but
+    never share this bot publicly with strangers without adding a real
+    sandbox first (e.g. Docker, restricted user, resource limits).
+    """
     try:
-        r = requests.post(url, json=payload, timeout=30)
-        r.raise_for_status()
-        result = r.json()
-        run_info = result.get("run", {})
-        output = run_info.get("output", "").strip()
+        result = subprocess.run(
+            ["python3", "-c", code],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        output = result.stdout.strip()
+        if result.returncode != 0:
+            output = (output + "\n" + result.stderr.strip()).strip()
         return output if output else "(no output)"
+    except subprocess.TimeoutExpired:
+        return "⚠️ Code timed out (max 10 seconds)."
     except Exception as e:
         return f"⚠️ Execution failed: {e}"
 
