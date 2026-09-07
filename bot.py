@@ -15,26 +15,29 @@ Cost: €0.
   - Gemini API (AI answers): free tier, no credit card required, generous daily quota
 
 SECURITY NOTE (relevant since you're headed into pentesting!):
-  Never hardcode secrets (bot token, API key) directly in code you might
-  commit to GitHub or share. This script reads them from environment
-  variables instead. On Replit, set these in the "Secrets" tab (padlock
-  icon in the sidebar) — NOT in the code itself, and NOT in the GitHub repo.
+  Never hardcode secrets (bot token, API key) directly in this file.
+  They're loaded from a separate ".env" file instead. NEVER upload or
+  push .env to a public GitHub repo — add it to .gitignore. Only .env.example
+  (with blank placeholder values) is safe to share publicly.
 """
 
 import os
 import random
 import requests
 import telebot
+from telebot import types
+from dotenv import load_dotenv
 from keep_alive import keep_alive
 
-# --- Load secrets from environment variables (set these in Replit "Secrets") ---
+load_dotenv()  # reads the .env file sitting next to this script
+
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 if not BOT_TOKEN:
-    raise RuntimeError("Missing BOT_TOKEN environment variable. Set it in Replit Secrets.")
+    raise RuntimeError("Missing BOT_TOKEN. Check your .env file has BOT_TOKEN=... set.")
 if not GEMINI_API_KEY:
-    raise RuntimeError("Missing GEMINI_API_KEY environment variable. Set it in Replit Secrets.")
+    raise RuntimeError("Missing GEMINI_API_KEY. Check your .env file has GEMINI_API_KEY=... set.")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -52,7 +55,7 @@ TIPS = [
 ]
 
 # --- PyPal's personality and behavior, exactly as designed by Lowkey ---
-PYPAL_SYSTEM_PROMPT = """You are PyPal, an expert, patient, and encouraging Python coding tutor and debugger operating inside a Telegram bot. You were created by ༺𝕷𝖔𝖜𝖐𝖊𝖞 𝕳𝖊'𝖘 𝕳𝖎𝖒༻ to help beginners master Python without feeling overwhelmed.
+PYPAL_SYSTEM_PROMPT = """You are PyPal, an expert, patient, and encouraging Python coding tutor and debugger operating inside a Telegram bot. You were created by Lowkey to help beginners master Python without feeling overwhelmed.
 
 YOUR CORE OBJECTIVES:
 1. Help users fix Python bugs and understand *why* the error occurred.
@@ -118,17 +121,28 @@ def run_python_code(code: str) -> str:
         return f"⚠️ Execution failed: {e}"
 
 
+AUTHOR_NAME = "༺𝕷𝖔𝖜𝖐𝖊𝖞 𝕳𝖊'𝖘 𝕳𝖎𝖒༻"
+CONTACT_USERNAME = "Im_just_l0wkey"
+
+
 @bot.message_handler(commands=["start", "help"])
 def start(message):
+    contact_markup = types.InlineKeyboardMarkup()
+    contact_markup.add(
+        types.InlineKeyboardButton(
+            text="💬 Contact Creator", url=f"https://t.me/{CONTACT_USERNAME}"
+        )
+    )
     bot.reply_to(
         message,
-        "👋 Hey, I'm *PyPal* — your Python coding buddy, built by ༺𝕷𝖔𝖜𝖐𝖊𝖞 𝕳𝖊'𝖘 𝕳𝖎𝖒༻.\n\n"
+        f"👋 Hey, I'm *PyPal* — your Python coding buddy, built by {AUTHOR_NAME}.\n\n"
         "*Commands:*\n"
-        "/run `<code>` —> run Python code and see the output\n"
-        "/explain `<code or error>` —> get a plain-English explanation\n"
-        "/tip —> get a random Python tip\n\n"
+        "/run `<code>` — run Python code and see the output\n"
+        "/explain `<code or error>` — get a plain-English explanation\n"
+        "/tip — get a random Python tip\n\n"
         "Or just send me your broken code or a traceback directly — no command needed!",
         parse_mode="Markdown",
+        reply_markup=contact_markup,
     )
 
 
