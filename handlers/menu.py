@@ -12,7 +12,7 @@ import random
 from telebot import types
 from core import bot, AUTHOR_NAME, CONTACT_USERNAME, TIPS
 
-DIVIDER = "━━━━━━━━━━━━━━━━━━━"
+DIVIDER = "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
 
 # Each category: emoji, display title, and its (command, description) pairs.
 # To add a command to an existing category, just add a tuple here.
@@ -56,11 +56,11 @@ def _total_command_count() -> int:
 
 def _main_menu_text() -> str:
     return (
-        "🐍 *PyPal*\n"
-        f"{DIVIDER}\n"
-        "_Your Python coding buddy + security toolkit_\n\n"
-        f"📂 {_total_command_count()} commands across {len(CATEGORIES)} categories\n\n"
-        "Choose a category below 👇\n\n"
+        "🐍 *PyPal* — _Command Center_\n"
+        f"{DIVIDER}\n\n"
+        "Your Python coding companion + security toolkit\n\n"
+        f"📊 *{_total_command_count()} tools* across *{len(CATEGORIES)} categories*\n\n"
+        "Select a category to explore ⤵️\n\n"
         "_Or just send broken code, a traceback, or any question directly — "
         "no command needed._"
     )
@@ -68,15 +68,18 @@ def _main_menu_text() -> str:
 
 def _main_menu_markup() -> types.InlineKeyboardMarkup:
     markup = types.InlineKeyboardMarkup()
-    for key, cat in CATEGORIES.items():
-        markup.add(
-            types.InlineKeyboardButton(
-                text=f"{cat['emoji']} {cat['title']} ({len(cat['commands'])})",
-                callback_data=f"cat_{key}",
-            )
+    cat_buttons = [
+        types.InlineKeyboardButton(
+            text=f"{cat['emoji']} {cat['title']} ({len(cat['commands'])})",
+            callback_data=f"cat_{key}",
         )
-    markup.add(types.InlineKeyboardButton(text="🎲 Random Tip", callback_data="tip"))
-    markup.add(
+        for key, cat in CATEGORIES.items()
+    ]
+    # 2-column grid for category buttons, last one alone if odd count
+    for i in range(0, len(cat_buttons), 2):
+        markup.row(*cat_buttons[i:i + 2])
+    markup.row(types.InlineKeyboardButton(text="🎲 Random Tip", callback_data="tip"))
+    markup.row(
         types.InlineKeyboardButton(
             text="💬 Contact Creator", url=f"https://t.me/{CONTACT_USERNAME}"
         )
@@ -88,23 +91,25 @@ def _category_text(key: str) -> str:
     cat = CATEGORIES[key]
     lines = [f"{cat['emoji']} *{cat['title']} Tools*", DIVIDER, ""]
     for cmd, desc in cat["commands"]:
-        lines.append(f"{cmd}\n{desc}\n")
+        lines.append(f"▸ {cmd}")
+        lines.append(f"   _{desc}_\n")
     if key in ("osint", "security"):
-        lines.append("⚠️ _Use only on targets you own or have explicit permission to test._")
+        lines.append(DIVIDER)
+        lines.append("⚠️ _Only use on targets you own or have explicit permission to test._")
     return "\n".join(lines).strip()
 
 
 def _category_markup() -> types.InlineKeyboardMarkup:
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton(text="🔙 Back to Menu", callback_data="menu"))
+    markup.row(types.InlineKeyboardButton(text="🔙 Back to Menu", callback_data="menu"))
     return markup
 
 
 @bot.message_handler(commands=["start", "help"])
 def start(message):
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton(text="📋 Full Menu", callback_data="menu"))
-    markup.add(
+    markup.row(types.InlineKeyboardButton(text="📋 Full Menu", callback_data="menu"))
+    markup.row(
         types.InlineKeyboardButton(
             text="💬 Contact Creator", url=f"https://t.me/{CONTACT_USERNAME}"
         )
