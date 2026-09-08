@@ -1,4 +1,5 @@
 pyTelegramBotAPI
-requests
+pyflakes
 python-dotenv
 python-whois
+requests
