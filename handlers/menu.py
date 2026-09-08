@@ -1,47 +1,102 @@
 """
-handlers/menu.py — /start, /menu, /tip, and the interactive menu buttons
-(Full Menu, Random Tip, Contact Creator).
+handlers/menu.py — /start, /menu, /tip, and PyPal's navigable menu system.
+
+The menu is structured as: main overview -> tap a category -> see just
+that category's commands -> tap Back. This is defined by the CATEGORIES
+dict below, so adding a new command to an existing category later is a
+one-line change here (plus wherever the command itself is implemented) —
+no need to touch the menu layout logic itself.
 """
 
 import random
 from telebot import types
 from core import bot, AUTHOR_NAME, CONTACT_USERNAME, TIPS
 
+DIVIDER = "━━━━━━━━━━━━━━━━━━━"
 
-def _menu_text() -> str:
+# Each category: emoji, display title, and its (command, description) pairs.
+# To add a command to an existing category, just add a tuple here.
+CATEGORIES = {
+    "coding": {
+        "emoji": "💻",
+        "title": "Coding",
+        "commands": [
+            ("/run `<code>`", "Execute Python code, see the output"),
+            ("/explain `<code or error>`", "Plain-English bug breakdown"),
+            ("/lint `<code>`", "Catch bugs/style issues without running it"),
+            ("/tip", "Random Python tip"),
+        ],
+    },
+    "osint": {
+        "emoji": "🕵️",
+        "title": "OSINT",
+        "commands": [
+            ("/ipinfo `<ip/domain>`", "Geolocation, ISP, org"),
+            ("/whois `<domain>`", "Domain registration info"),
+            ("/headers `<url>`", "HTTP response headers"),
+            ("/subdomains `<domain>`", "Passive subdomain enumeration"),
+        ],
+    },
+    "security": {
+        "emoji": "🛡",
+        "title": "Security",
+        "commands": [
+            ("/portscan `<host>`", "Common-port TCP check"),
+            ("/sslcheck `<domain>`", "SSL certificate details & expiry"),
+            ("/cve `<keyword or CVE-ID>`", "Public vulnerability lookup"),
+            ("/base64 `encode|decode <text>`", "Quick base64 utility"),
+        ],
+    },
+}
+
+
+def _total_command_count() -> int:
+    return sum(len(cat["commands"]) for cat in CATEGORIES.values())
+
+
+def _main_menu_text() -> str:
     return (
-        "🐍 *PyPal — Full Menu*\n"
+        "🐍 *PyPal*\n"
+        f"{DIVIDER}\n"
         "_Your Python coding buddy + security toolkit_\n\n"
-        "*💻 Coding*\n"
-        "/run `<code>` — execute Python code, see the output\n"
-        "/explain `<code or error>` — plain-English bug breakdown\n"
-        "/lint `<code>` — catch bugs/style issues without running it\n"
-        "/tip — random Python tip\n\n"
-        "*🕵️ OSINT*\n"
-        "/ipinfo `<ip/domain>` — geolocation, ISP, org\n"
-        "/whois `<domain>` — domain registration info\n"
-        "/headers `<url>` — HTTP response headers\n"
-        "/subdomains `<domain>` — passive subdomain enumeration\n\n"
-        "*🛡 Security*\n"
-        "/portscan `<host>` — common-port TCP check\n"
-        "/sslcheck `<domain>` — SSL certificate details & expiry\n"
-        "/cve `<keyword or CVE-ID>` — public vulnerability lookup\n"
-        "/base64 `encode|decode <text>` — quick base64 utility\n\n"
-        "*⚠️ Use OSINT/Security tools only on targets you own or have explicit permission to test.*\n\n"
-        "*No command needed:* send broken code, a traceback, or any coding "
-        "question directly and PyPal debugs or explains it automatically.\n\n"
-        f"Built by {AUTHOR_NAME}"
+        f"📂 {_total_command_count()} commands across {len(CATEGORIES)} categories\n\n"
+        "Choose a category below 👇\n\n"
+        "_Or just send broken code, a traceback, or any question directly — "
+        "no command needed._"
     )
 
 
-def _menu_markup() -> types.InlineKeyboardMarkup:
+def _main_menu_markup() -> types.InlineKeyboardMarkup:
     markup = types.InlineKeyboardMarkup()
+    for key, cat in CATEGORIES.items():
+        markup.add(
+            types.InlineKeyboardButton(
+                text=f"{cat['emoji']} {cat['title']} ({len(cat['commands'])})",
+                callback_data=f"cat_{key}",
+            )
+        )
     markup.add(types.InlineKeyboardButton(text="🎲 Random Tip", callback_data="tip"))
     markup.add(
         types.InlineKeyboardButton(
             text="💬 Contact Creator", url=f"https://t.me/{CONTACT_USERNAME}"
         )
     )
+    return markup
+
+
+def _category_text(key: str) -> str:
+    cat = CATEGORIES[key]
+    lines = [f"{cat['emoji']} *{cat['title']} Tools*", DIVIDER, ""]
+    for cmd, desc in cat["commands"]:
+        lines.append(f"{cmd}\n{desc}\n")
+    if key in ("osint", "security"):
+        lines.append("⚠️ _Use only on targets you own or have explicit permission to test._")
+    return "\n".join(lines).strip()
+
+
+def _category_markup() -> types.InlineKeyboardMarkup:
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton(text="🔙 Back to Menu", callback_data="menu"))
     return markup
 
 
@@ -69,7 +124,7 @@ def start(message):
 
 @bot.message_handler(commands=["menu"])
 def menu_cmd(message):
-    bot.reply_to(message, _menu_text(), parse_mode="Markdown", reply_markup=_menu_markup())
+    bot.reply_to(message, _main_menu_text(), parse_mode="Markdown", reply_markup=_main_menu_markup())
 
 
 @bot.message_handler(commands=["tip"])
@@ -82,8 +137,23 @@ def handle_callback(call):
     if call.data == "menu":
         bot.answer_callback_query(call.id)
         bot.send_message(
-            call.message.chat.id, _menu_text(), parse_mode="Markdown", reply_markup=_menu_markup()
+            call.message.chat.id,
+            _main_menu_text(),
+            parse_mode="Markdown",
+            reply_markup=_main_menu_markup(),
         )
+    elif call.data.startswith("cat_"):
+        key = call.data[len("cat_"):]
+        if key in CATEGORIES:
+            bot.answer_callback_query(call.id)
+            bot.send_message(
+                call.message.chat.id,
+                _category_text(key),
+                parse_mode="Markdown",
+                reply_markup=_category_markup(),
+            )
+        else:
+            bot.answer_callback_query(call.id)
     elif call.data == "tip":
         bot.answer_callback_query(call.id, text="Here's a tip!")
         bot.send_message(call.message.chat.id, "💡 " + random.choice(TIPS))
