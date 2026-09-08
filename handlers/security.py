@@ -4,6 +4,8 @@ handlers/security.py — /portscan, /cve, /base64.
 
 import base64 as b64
 import socket
+import ssl
+from datetime import datetime, timezone
 import requests
 from core import bot
 from formatting import safe_reply
@@ -116,3 +118,108 @@ def portscan_cmd(message):
         return
     reply = f"🔓 *Port scan: {host} ({ip})*\n```\n" + "\n".join(open_ports) + "\n```"
     safe_reply(message, reply)
+
+
+@bot.message_handler(commands=["sslcheck"])
+def sslcheck_cmd(message):
+    import ssl
+    import datetime
+
+    domain = message.text.replace("/sslcheck", "", 1).strip()
+    if not domain:
+        bot.reply_to(message, "Usage: /sslcheck <domain>\ne.g. /sslcheck example.com")
+        return
+    domain = domain.replace("https://", "").replace("http://", "").split("/")[0]
+    bot.send_chat_action(message.chat.id, "typing")
+    try:
+        ctx = ssl.create_default_context()
+        with socket.create_connection((domain, 443), timeout=10) as sock:
+            with ctx.wrap_socket(sock, server_hostname=domain) as ssock:
+                cert = ssock.getpeercert()
+                cipher = ssock.cipher()
+                version = ssock.version()
+
+        issuer = dict(x[0] for x in cert.get("issuer", []))
+        subject = dict(x[0] for x in cert.get("subject", []))
+        not_before = cert.get("notBefore")
+        not_after = cert.get("notAfter")
+
+        try:
+            expiry_date = datetime.datetime.strptime(not_after, "%b %d %H:%M:%S %Y %Z")
+            days_left = (expiry_date - datetime.datetime.utcnow()).days
+            expiry_note = f" ({days_left} days left)"
+        except Exception:
+            days_left = None
+            expiry_note = ""
+
+        sans = [s[1] for s in cert.get("subjectAltName", [])]
+
+        reply = (
+            f"🔐 *SSL Certificate: {domain}*\n"
+            f"Subject: {subject.get('commonName', 'N/A')}\n"
+            f"Issuer: {issuer.get('commonName', 'N/A')}\n"
+            f"Valid from: {not_before}\n"
+            f"Valid until: {not_after}{expiry_note}\n"
+            f"Protocol: {version}\n"
+            f"Cipher: {cipher[0] if cipher else 'N/A'}\n"
+            f"SANs: {', '.join(sans[:10]) if sans else 'N/A'}"
+        )
+        if days_left is not None and days_left < 14:
+            reply += "\n\n⚠️ Certificate is expiring soon!"
+        safe_reply(message, reply)
+    except ssl.SSLCertVerificationError as e:
+        safe_reply(message, f"⚠️ Certificate verification failed: {e}\n(This itself can be a real finding on an audit.)")
+    except Exception as e:
+        bot.reply_to(message, f"⚠️ SSL check failed: {e}")
+
+
+@bot.message_handler(commands=["sslcheck"])
+def sslcheck_cmd(message):
+    domain = message.text.replace("/sslcheck", "", 1).strip()
+    if not domain:
+        bot.reply_to(message, "Usage: /sslcheck <domain>\ne.g. /sslcheck example.com")
+        return
+    domain = domain.replace("https://", "").replace("http://", "").split("/")[0]
+    bot.send_chat_action(message.chat.id, "typing")
+    try:
+        ctx = ssl.create_default_context()
+        with socket.create_connection((domain, 443), timeout=10) as sock:
+            with ctx.wrap_socket(sock, server_hostname=domain) as ssock:
+                cert = ssock.getpeercert()
+                cipher = ssock.cipher()
+                proto = ssock.version()
+
+        not_before = cert.get("notBefore", "N/A")
+        not_after = cert.get("notAfter", "N/A")
+        try:
+            expiry_dt = datetime.strptime(not_after, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc)
+            days_left = (expiry_dt - datetime.now(timezone.utc)).days
+        except ValueError:
+            days_left = None
+
+        issuer = dict(x[0] for x in cert.get("issuer", []))
+        subject = dict(x[0] for x in cert.get("subject", []))
+        san_entries = cert.get("subjectAltName", [])
+        san_list = ", ".join(v for _, v in san_entries) if san_entries else "N/A"
+
+        reply = (
+            f"🔒 *SSL Certificate: {domain}*\n"
+            f"Subject: {subject.get('commonName', 'N/A')}\n"
+            f"Issuer: {issuer.get('organizationName', issuer.get('commonName', 'N/A'))}\n"
+            f"Valid from: {not_before}\n"
+            f"Valid until: {not_after}"
+        )
+        if days_left is not None:
+            reply += f" ({days_left} days left)"
+        reply += (
+            f"\nProtocol: {proto}\n"
+            f"Cipher: {cipher[0] if cipher else 'N/A'}\n"
+            f"SANs: {san_list}"
+        )
+        if days_left is not None and days_left < 14:
+            reply += "\n\n⚠️ Certificate expiring soon!"
+        safe_reply(message, reply)
+    except ssl.SSLCertVerificationError as e:
+        safe_reply(message, f"⚠️ Certificate verification failed: {e}\n(this itself can be a useful finding)")
+    except Exception as e:
+        bot.reply_to(message, f"⚠️ SSL check failed: {e}")
