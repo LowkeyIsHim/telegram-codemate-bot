@@ -35,7 +35,7 @@ PLATFORM CONSTRAINT: Users can test code themselves via this bot's /run command,
 
 def ask_pypal(prompt: str) -> str:
     """Send a prompt to Gemini (free tier) with PyPal's personality and return the reply."""
-    model = "gemini-3.5-flash"
+    model = "gemini-3.6-flash"
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
         f"{model}:generateContent?key={GEMINI_API_KEY}"
