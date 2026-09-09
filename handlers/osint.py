@@ -5,6 +5,7 @@ beyond a plain HTTP request (/headers) or a public API lookup.
 """
 
 import requests
+import dns.resolver
 from core import bot, MAX_OUTPUT_CHARS
 from formatting import safe_reply
 
@@ -148,3 +149,38 @@ def subdomains_cmd(message):
         safe_reply(message, reply)
     except Exception as e:
         bot.reply_to(message, f"⚠️ Lookup failed: {e}")
+
+
+DNS_RECORD_TYPES = ["A", "AAAA", "MX", "NS", "TXT", "CNAME"]
+
+
+@bot.message_handler(commands=["dns"])
+def dns_cmd(message):
+    domain = message.text.replace("/dns", "", 1).strip()
+    if not domain:
+        bot.reply_to(message, "Usage: /dns <domain>\ne.g. /dns example.com")
+        return
+    bot.send_chat_action(message.chat.id, "typing")
+    resolver = dns.resolver.Resolver()
+    resolver.timeout = 5
+    resolver.lifetime = 5
+
+    results = []
+    for record_type in DNS_RECORD_TYPES:
+        try:
+            answers = resolver.resolve(domain, record_type)
+            values = [str(r).strip('"') for r in answers]
+            results.append(f"*{record_type}*\n" + "\n".join(f"  {v}" for v in values))
+        except dns.resolver.NoAnswer:
+            continue
+        except dns.resolver.NXDOMAIN:
+            bot.reply_to(message, f"⚠️ Domain '{domain}' doesn't exist.")
+            return
+        except Exception:
+            continue
+
+    if not results:
+        safe_reply(message, f"No DNS records found for {domain}.")
+        return
+    reply = f"🌐 *DNS Records: {domain}*\n\n" + "\n\n".join(results)
+    safe_reply(message, reply)
