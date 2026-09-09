@@ -223,3 +223,73 @@ def sslcheck_cmd(message):
         safe_reply(message, f"⚠️ Certificate verification failed: {e}\n(this itself can be a useful finding)")
     except Exception as e:
         bot.reply_to(message, f"⚠️ SSL check failed: {e}")
+
+
+# Security headers checked, and why each one matters — this is the same
+# core check real tools like Mozilla Observatory / securityheaders.com run.
+SECURITY_HEADERS = {
+    "strict-transport-security": "Forces HTTPS; without it, downgrade/MITM attacks are easier",
+    "content-security-policy": "Restricts what scripts/content can load; missing = weaker XSS defense",
+    "x-content-type-options": "Should be 'nosniff'; prevents MIME-sniffing attacks",
+    "x-frame-options": "Missing = page can be embedded in a hidden iframe (clickjacking risk)",
+    "referrer-policy": "Controls how much of this site's URL leaks to other sites via links",
+    "permissions-policy": "Restricts access to camera/mic/location APIs from this page",
+}
+
+
+@bot.message_handler(commands=["audit"])
+def audit_cmd(message):
+    """Passive security posture check: which protective HTTP headers are
+    present, whether the server leaks version info, and cookie flags —
+    all from ordinary requests, nothing sent that a browser wouldn't send."""
+    url = message.text.replace("/audit", "", 1).strip()
+    if not url:
+        bot.reply_to(
+            message,
+            "Usage: /audit <url>\ne.g. /audit example.com\n\n"
+            "Checks for missing security headers, server version disclosure, "
+            "and cookie flags — a passive audit, like Mozilla Observatory.",
+        )
+        return
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    bot.send_chat_action(message.chat.id, "typing")
+    try:
+        r = requests.get(url, timeout=10, allow_redirects=True)
+        headers = {k.lower(): v for k, v in r.headers.items()}
+
+        present, missing = [], []
+        for header, why in SECURITY_HEADERS.items():
+            if header in headers:
+                present.append(f"✅ {header}")
+            else:
+                missing.append(f"❌ {header} — {why}")
+
+        findings = []
+        server = headers.get("server", "")
+        if any(ch.isdigit() for ch in server):
+            findings.append(f"⚠️ Server header discloses version info: `{server}`")
+
+        set_cookie = headers.get("set-cookie", "")
+        if set_cookie:
+            flags_ok = "secure" in set_cookie.lower() and "httponly" in set_cookie.lower()
+            if not flags_ok:
+                findings.append("⚠️ Cookies missing Secure and/or HttpOnly flags")
+
+        score = len(present)
+        total = len(SECURITY_HEADERS)
+        grade = "A" if score >= total - 1 else "B" if score >= total * 0.66 else "C" if score >= total * 0.33 else "D"
+
+        reply = (
+            f"🛡 *Security Audit: {url}*\n"
+            f"Grade: *{grade}*  ({score}/{total} protective headers present)\n\n"
+        )
+        if present:
+            reply += "\n".join(present) + "\n\n"
+        if missing:
+            reply += "\n".join(missing) + "\n\n"
+        if findings:
+            reply += "\n".join(findings)
+        safe_reply(message, reply.strip())
+    except Exception as e:
+        bot.reply_to(message, f"⚠️ Audit failed: {e}")
