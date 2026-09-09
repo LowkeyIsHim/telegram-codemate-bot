@@ -12,7 +12,7 @@ import random
 from telebot import types
 from core import bot, AUTHOR_NAME, CONTACT_USERNAME, TIPS
 
-DIVIDER = "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
+DIVIDER = "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
 
 # Each category: emoji, display title, and its (command, description) pairs.
 # To add a command to an existing category, just add a tuple here.
@@ -22,6 +22,23 @@ CATEGORIES = {
         "title": "Full Recon",
         "commands": [
             ("/recon `<domain>`", "Automated WHOIS + DNS + subdomains + headers + audit, all in one"),
+        ],
+    },
+    "antiscam": {
+        "emoji": "🚨",
+        "title": "Anti-Scam",
+        "commands": [
+            ("/scamcheck `<url or message>`", "Check a link/message for scam & phishing red flags"),
+        ],
+    },
+    "bugbounty": {
+        "emoji": "🐛",
+        "title": "Bug Bounty",
+        "commands": [
+            ("/techstack `<url>`", "Fingerprint the tech stack (CMS, framework, server)"),
+            ("/wayback `<domain>`", "Find historical/forgotten URLs via the Internet Archive"),
+            ("/securitytxt `<domain>`", "Find the org's responsible-disclosure contact"),
+            ("/robots `<domain>`", "Check robots.txt for interesting disallowed paths"),
         ],
     },
     "coding": {
