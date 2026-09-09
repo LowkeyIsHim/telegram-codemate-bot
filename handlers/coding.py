@@ -32,26 +32,6 @@ def explain_cmd(message):
 
 @bot.message_handler(commands=["lint"])
 def lint_cmd(message):
-    """Static analysis only — never executes the code. Catches undefined
-    names, unused imports, syntax errors, and similar issues instantly."""
-    code = message.text.replace("/lint", "", 1).strip()
-    if not code:
-        bot.reply_to(message, "Send code after /lint, e.g.:\n/lint import os\nprint(x)")
-        return
-    from pyflakes.api import check
-    from pyflakes.reporter import Reporter
-
-    out, err = io.StringIO(), io.StringIO()
-    check(code, "<snippet>", Reporter(out, err))
-    output = (out.getvalue() + err.getvalue()).strip()
-    if not output:
-        safe_reply(message, "✅ No issues found!")
-    else:
-        safe_reply(message, f"🔍 *Lint results:*\n```\n{output}\n```")
-
-
-@bot.message_handler(commands=["lint"])
-def lint_cmd(message):
     """Static analysis with pyflakes — catches undefined names, unused
     imports, syntax errors, etc. WITHOUT actually running the code."""
     code = message.text.replace("/lint", "", 1).strip()
@@ -73,3 +53,65 @@ def lint_cmd(message):
             safe_reply(message, f"🔍 *Lint results:*\n```\n{output}\n```")
     except Exception as e:
         bot.reply_to(message, f"⚠️ Lint failed: {e}")
+
+
+@bot.message_handler(commands=["regex"])
+def regex_cmd(message):
+    """Usage: /regex <pattern> | <test text>
+    Also accepts pattern and text on separate lines."""
+    text = message.text.replace("/regex", "", 1).strip()
+    if not text:
+        bot.reply_to(
+            message,
+            "Usage: /regex <pattern> | <test text>\n"
+            "e.g. /regex ^\\d+$ | 12345\n\n"
+            "Or send the pattern on one line, test text on the next.",
+        )
+        return
+
+    if "\n" in text:
+        pattern, test_text = text.split("\n", 1)
+    elif "|" in text:
+        pattern, test_text = text.split("|", 1)
+    else:
+        bot.reply_to(
+            message,
+            "Need both a pattern and test text — separate them with '|' or a newline.\n"
+            "e.g. /regex ^\\d+$ | 12345",
+        )
+        return
+
+    pattern, test_text = pattern.strip(), test_text.strip()
+    try:
+        import re as re_module
+        compiled = re_module.compile(pattern)
+        match = compiled.search(test_text)
+        if match:
+            groups = match.groups()
+            reply = f"✅ *Match found!*\nMatched: `{match.group(0)}`"
+            if groups:
+                reply += "\nGroups: " + ", ".join(f"`{g}`" for g in groups)
+        else:
+            reply = "❌ *No match.*"
+        safe_reply(message, reply)
+    except re_module.error as e:
+        bot.reply_to(message, f"⚠️ Invalid regex pattern: {e}")
+
+
+@bot.message_handler(commands=["docs"])
+def docs_cmd(message):
+    """Quick Python stdlib doc lookup, e.g. /docs str.split or /docs os.path.join"""
+    term = message.text.replace("/docs", "", 1).strip()
+    if not term:
+        bot.reply_to(message, "Usage: /docs <name>\ne.g. /docs str.split\ne.g. /docs os.path.join")
+        return
+    bot.send_chat_action(message.chat.id, "typing")
+    try:
+        import pydoc
+        doc = pydoc.render_doc(term, renderer=pydoc.plaintext)
+        # Strip pydoc's noisy "Help on ..." header formatting for a cleaner reply
+        if len(doc) > 1500:
+            doc = doc[:1500] + "\n... (truncated)"
+        safe_reply(message, f"📖 *Docs: {term}*\n```\n{doc}\n```")
+    except Exception as e:
+        bot.reply_to(message, f"⚠️ No docs found for '{term}': {e}")
