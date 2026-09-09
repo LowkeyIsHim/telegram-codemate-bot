@@ -47,6 +47,22 @@ def ipinfo_cmd(message):
     safe_reply(message, get_ipinfo_text(target))
 
 
+def _format_whois_date(value) -> str:
+    """python-whois sometimes returns a single datetime, sometimes a list
+    of them (when a registry has multiple matching records) — normalize
+    both into a clean, readable string instead of a raw Python repr."""
+    if value is None:
+        return "N/A"
+    if isinstance(value, list):
+        value = value[0] if value else None
+        if value is None:
+            return "N/A"
+    try:
+        return value.strftime("%Y-%m-%d %H:%M UTC")
+    except AttributeError:
+        return str(value)
+
+
 def get_whois_text(domain: str) -> str:
     try:
         import whois as whois_lib
@@ -65,8 +81,8 @@ def get_whois_text(domain: str) -> str:
         return (
             f"📄 *WHOIS: {domain}*\n"
             f"Registrar: {data.registrar}\n"
-            f"Created: {data.creation_date}\n"
-            f"Expires: {data.expiration_date}\n"
+            f"Created: {_format_whois_date(data.creation_date)}\n"
+            f"Expires: {_format_whois_date(data.expiration_date)}\n"
             f"Name servers: {', '.join(data.name_servers) if data.name_servers else 'N/A'}"
         )
     except Exception as e:
