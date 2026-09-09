@@ -41,6 +41,7 @@ CATEGORIES = {
         "emoji": "🛡",
         "title": "Security",
         "commands": [
+            ("/audit `<url>`", "Passive security header audit (A–D grade)"),
             ("/portscan `<host>`", "Common-port TCP check"),
             ("/sslcheck `<domain>`", "SSL certificate details & expiry"),
             ("/cve `<keyword or CVE-ID>`", "Public vulnerability lookup"),
