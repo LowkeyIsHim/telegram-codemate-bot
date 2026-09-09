@@ -1,0 +1,155 @@
+"""
+handlers/bugbounty.py — passive recon tools used in real bug-bounty
+workflows: technology fingerprinting, historical URL discovery via the
+Wayback Machine, responsible-disclosure contact lookup, and robots.txt
+inspection. All passive — ordinary requests a browser would also send,
+or queries to third-party public archives, never active probing.
+"""
+
+import requests
+from core import bot, MAX_OUTPUT_CHARS
+from formatting import safe_reply
+
+TECH_SIGNATURES = {
+    "WordPress": ["wp-content", "wp-includes", 'name="generator" content="WordPress'],
+    "Shopify": ["cdn.shopify.com", "Shopify.theme"],
+    "Next.js": ["__NEXT_DATA__", "_next/static"],
+    "React": ["react-root", "data-reactroot"],
+    "Angular": ["ng-version"],
+    "Vue.js": ["data-v-app", "__vue__"],
+    "Drupal": ["Drupal.settings", "/sites/default/"],
+    "Django": ["csrfmiddlewaretoken"],
+    "Laravel": ["laravel_session"],
+    "Ruby on Rails": ["csrf-param", "data-turbo"],
+}
+
+
+def get_techstack_text(url: str) -> str:
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    try:
+        r = requests.get(url, timeout=10)
+        headers = {k.lower(): v for k, v in r.headers.items()}
+        body = r.text[:200_000]  # cap how much page text we scan
+
+        found = []
+        if headers.get("server"):
+            found.append(f"Server: {headers['server']}")
+        if headers.get("x-powered-by"):
+            found.append(f"X-Powered-By: {headers['x-powered-by']}")
+
+        for tech, sigs in TECH_SIGNATURES.items():
+            if any(sig in body for sig in sigs):
+                found.append(f"Detected: {tech}")
+
+        set_cookie = headers.get("set-cookie", "")
+        if "PHPSESSID" in set_cookie:
+            found.append("Language hint: PHP (PHPSESSID cookie)")
+        if "JSESSIONID" in set_cookie:
+            found.append("Language hint: Java (JSESSIONID cookie)")
+
+        if not found:
+            return f"No obvious technology fingerprints found for {url}."
+        return f"🔧 *Tech Stack: {url}*\n" + "\n".join(f"• {f}" for f in found)
+    except Exception as e:
+        return f"⚠️ Tech detection failed: {e}"
+
+
+@bot.message_handler(commands=["techstack"])
+def techstack_cmd(message):
+    url = message.text.replace("/techstack", "", 1).strip()
+    if not url:
+        bot.reply_to(message, "Usage: /techstack <url>\ne.g. /techstack example.com")
+        return
+    bot.send_chat_action(message.chat.id, "typing")
+    safe_reply(message, get_techstack_text(url))
+
+
+def get_wayback_text(domain: str) -> str:
+    try:
+        r = requests.get(
+            "http://web.archive.org/cdx/search/cdx",
+            params={
+                "url": f"{domain}/*",
+                "output": "json",
+                "fl": "original",
+                "collapse": "urlkey",
+                "limit": 50,
+            },
+            timeout=20,
+        )
+        r.raise_for_status()
+        data = r.json()
+        if len(data) <= 1:  # first row is just the header ["original"]
+            return f"No archived URLs found for {domain} in the Wayback Machine."
+        urls = [row[0] for row in data[1:]]
+        reply = f"🕰 *Wayback Machine: {domain}* ({len(urls)} URLs, capped at 50)\n```\n"
+        reply += "\n".join(urls) + "\n```"
+        return reply
+    except Exception as e:
+        return f"⚠️ Wayback lookup failed: {e}"
+
+
+@bot.message_handler(commands=["wayback"])
+def wayback_cmd(message):
+    domain = message.text.replace("/wayback", "", 1).strip()
+    if not domain:
+        bot.reply_to(message, "Usage: /wayback <domain>\ne.g. /wayback example.com")
+        return
+    bot.send_chat_action(message.chat.id, "typing")
+    safe_reply(message, get_wayback_text(domain))
+
+
+def get_securitytxt_text(domain: str) -> str:
+    candidates = [
+        f"https://{domain}/.well-known/security.txt",
+        f"https://{domain}/security.txt",
+    ]
+    for url in candidates:
+        try:
+            r = requests.get(url, timeout=10)
+            if r.status_code == 200 and r.text.strip():
+                content = r.text.strip()[:MAX_OUTPUT_CHARS]
+                return f"🔐 *security.txt found:* `{url}`\n```\n{content}\n```"
+        except Exception:
+            continue
+    return (
+        f"No security.txt found for {domain}. They haven't published a "
+        "responsible-disclosure contact per RFC 9116 — worth knowing before "
+        "trying to report anything to them."
+    )
+
+
+@bot.message_handler(commands=["securitytxt"])
+def securitytxt_cmd(message):
+    domain = message.text.replace("/securitytxt", "", 1).strip()
+    if not domain:
+        bot.reply_to(message, "Usage: /securitytxt <domain>\ne.g. /securitytxt example.com")
+        return
+    bot.send_chat_action(message.chat.id, "typing")
+    safe_reply(message, get_securitytxt_text(domain))
+
+
+def get_robots_text(domain: str) -> str:
+    base = domain if domain.startswith(("http://", "https://")) else f"https://{domain}"
+    try:
+        r = requests.get(f"{base}/robots.txt", timeout=10)
+        if r.status_code != 200:
+            return f"No robots.txt found at {base}/robots.txt (status {r.status_code})."
+        content = r.text.strip()
+        if not content:
+            return f"{base}/robots.txt exists but is empty."
+        content = content[:MAX_OUTPUT_CHARS]
+        return f"🤖 *robots.txt: {base}*\n```\n{content}\n```"
+    except Exception as e:
+        return f"⚠️ robots.txt fetch failed: {e}"
+
+
+@bot.message_handler(commands=["robots"])
+def robots_cmd(message):
+    domain = message.text.replace("/robots", "", 1).strip()
+    if not domain:
+        bot.reply_to(message, "Usage: /robots <domain>\ne.g. /robots example.com")
+        return
+    bot.send_chat_action(message.chat.id, "typing")
+    safe_reply(message, get_robots_text(domain))
