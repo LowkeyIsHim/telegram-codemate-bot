@@ -8,6 +8,8 @@ across different files register on the same bot.
 """
 
 import os
+import time
+from collections import defaultdict
 import telebot
 from dotenv import load_dotenv
 
@@ -39,3 +41,53 @@ TIPS = [
     "Use collections.Counter to count items in a list in one line.",
     "Avoid mutable default arguments like def f(x, lst=[]): — it causes bugs.",
 ]
+
+# --- Global rate limiting -------------------------------------------------
+# Applied automatically to every @bot.message_handler in every file, by
+# wrapping bot.message_handler itself right here. No other file needs to
+# know this exists — that's the point: one place to tune it, protection
+# everywhere. Doesn't cover the /run sandbox's own CPU/memory limits
+# (those are separate, in sandbox.py) — this just stops someone from
+# firing commands faster than the bot (or its host) can handle.
+
+RATE_LIMIT_MAX = 10       # max commands
+RATE_LIMIT_WINDOW = 30    # seconds
+
+_user_message_times = defaultdict(list)
+
+
+def _is_rate_limited(user_id) -> bool:
+    now = time.time()
+    times = _user_message_times[user_id]
+    while times and now - times[0] > RATE_LIMIT_WINDOW:
+        times.pop(0)
+    if len(times) >= RATE_LIMIT_MAX:
+        return True
+    times.append(now)
+    return False
+
+
+_original_message_handler = bot.message_handler
+
+
+def _rate_limited_message_handler(*args, **kwargs):
+    register = _original_message_handler(*args, **kwargs)
+
+    def decorator(func):
+        def wrapped(message, *a, **kw):
+            user = getattr(message, "from_user", None)
+            user_id = user.id if user else message.chat.id
+            if _is_rate_limited(user_id):
+                bot.reply_to(
+                    message,
+                    f"⏳ Slow down a bit — max {RATE_LIMIT_MAX} commands per "
+                    f"{RATE_LIMIT_WINDOW}s. Try again shortly.",
+                )
+                return
+            return func(message, *a, **kw)
+        return register(wrapped)
+
+    return decorator
+
+
+bot.message_handler = _rate_limited_message_handler
