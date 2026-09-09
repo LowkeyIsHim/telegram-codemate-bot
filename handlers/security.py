@@ -185,23 +185,9 @@ SECURITY_HEADERS = {
 }
 
 
-@bot.message_handler(commands=["audit"])
-def audit_cmd(message):
-    """Passive security posture check: which protective HTTP headers are
-    present, whether the server leaks version info, and cookie flags —
-    all from ordinary requests, nothing sent that a browser wouldn't send."""
-    url = message.text.replace("/audit", "", 1).strip()
-    if not url:
-        bot.reply_to(
-            message,
-            "Usage: /audit <url>\ne.g. /audit example.com\n\n"
-            "Checks for missing security headers, server version disclosure, "
-            "and cookie flags — a passive audit, like Mozilla Observatory.",
-        )
-        return
+def get_audit_text(url: str) -> str:
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
-    bot.send_chat_action(message.chat.id, "typing")
     try:
         r = requests.get(url, timeout=10, allow_redirects=True)
         headers = {k.lower(): v for k, v in r.headers.items()}
@@ -238,9 +224,27 @@ def audit_cmd(message):
             reply += "\n".join(missing) + "\n\n"
         if findings:
             reply += "\n".join(findings)
-        safe_reply(message, reply.strip())
+        return reply.strip()
     except Exception as e:
-        bot.reply_to(message, f"⚠️ Audit failed: {e}")
+        return f"⚠️ Audit failed: {e}"
+
+
+@bot.message_handler(commands=["audit"])
+def audit_cmd(message):
+    """Passive security posture check: which protective HTTP headers are
+    present, whether the server leaks version info, and cookie flags —
+    all from ordinary requests, nothing sent that a browser wouldn't send."""
+    url = message.text.replace("/audit", "", 1).strip()
+    if not url:
+        bot.reply_to(
+            message,
+            "Usage: /audit <url>\ne.g. /audit example.com\n\n"
+            "Checks for missing security headers, server version disclosure, "
+            "and cookie flags — a passive audit, like Mozilla Observatory.",
+        )
+        return
+    bot.send_chat_action(message.chat.id, "typing")
+    safe_reply(message, get_audit_text(url))
 
 
 @bot.message_handler(commands=["hash"])
