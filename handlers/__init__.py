@@ -17,4 +17,6 @@ from . import coding
 from . import osint
 from . import security
 from . import recon
+from . import antiscam
+from . import bugbounty
 from . import fallback  # noqa: F401 — must stay last, see docstring above
