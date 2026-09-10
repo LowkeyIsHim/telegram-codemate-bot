@@ -101,23 +101,42 @@ def wayback_cmd(message):
 
 
 def get_securitytxt_text(domain: str) -> str:
-    candidates = [
-        f"https://{domain}/.well-known/security.txt",
-        f"https://{domain}/security.txt",
+    clean_domain = domain.replace("https://", "").replace("http://", "").strip("/")
+    urls = [
+        f"https://{clean_domain}/.well-known/security.txt",
+        f"https://{clean_domain}/security.txt",
     ]
-    for url in candidates:
+    for url in urls:
         try:
-            r = requests.get(url, timeout=10)
-            if r.status_code == 200 and r.text.strip():
-                content = r.text.strip()[:MAX_OUTPUT_CHARS]
-                return f"🔐 *security.txt found:* `{url}`\n```\n{content}\n```"
+            r = requests.get(url, timeout=10, allow_redirects=True)
+            # Validate it's an actual security.txt, not just any 200 page
+            # (e.g. a custom 404 that still returns status 200).
+            if r.status_code == 200 and ("Contact:" in r.text or "Expires:" in r.text):
+                contacts, policy, expires, encryption = [], "N/A", "N/A", "N/A"
+                for line in r.text.splitlines():
+                    line = line.strip()
+                    if line.startswith("Contact:"):
+                        contacts.append(line.split(":", 1)[1].strip())
+                    elif line.startswith("Policy:"):
+                        policy = line.split(":", 1)[1].strip()
+                    elif line.startswith("Expires:"):
+                        expires = line.split(":", 1)[1].strip()
+                    elif line.startswith("Encryption:"):
+                        encryption = line.split(":", 1)[1].strip()
+
+                contact_str = "\n".join(f"• `{c}`" for c in contacts) if contacts else "• None specified"
+
+                return (
+                    f"🛡 *RFC 9116 Disclosure Info: `{clean_domain}`*\n\n"
+                    f"*Reporting Contacts:*\n{contact_str}\n\n"
+                    f"• *Policy URL:* `{policy}`\n"
+                    f"• *PGP Key:* `{encryption}`\n"
+                    f"• *Expires:* `{expires}`\n"
+                    f"• *Source Path:* `{url}`"
+                )
         except Exception:
             continue
-    return (
-        f"No security.txt found for {domain}. They haven't published a "
-        "responsible-disclosure contact per RFC 9116 — worth knowing before "
-        "trying to report anything to them."
-    )
+    return f"❌ No valid RFC 9116 security.txt found for `{clean_domain}`."
 
 
 @bot.message_handler(commands=["securitytxt"])
@@ -127,7 +146,13 @@ def securitytxt_cmd(message):
         bot.reply_to(message, "Usage: /securitytxt <domain>\ne.g. /securitytxt example.com")
         return
     bot.send_chat_action(message.chat.id, "typing")
-    safe_reply(message, get_securitytxt_text(domain))
+    text = get_securitytxt_text(domain)
+    try:
+        bot.reply_to(message, text, parse_mode="Markdown")
+    except Exception:
+        # A contact/PGP value with a stray _ or * could unbalance legacy
+        # Markdown — fall back to plain text rather than losing the reply.
+        bot.reply_to(message, text)
 
 
 def get_robots_text(domain: str) -> str:
