@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import requests
 from core import bot
 from formatting import safe_reply
+from ssrf_guard import is_blocked_target
 
 
 @bot.message_handler(commands=["base64"])
@@ -107,6 +108,11 @@ def portscan_cmd(message):
         bot.reply_to(message, f"⚠️ Couldn't resolve '{host}': {e}")
         return
 
+    blocked = is_blocked_target(host)
+    if blocked:
+        bot.reply_to(message, blocked)
+        return
+
     open_ports = []
     for port, name in COMMON_PORTS.items():
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -128,6 +134,10 @@ def sslcheck_cmd(message):
         bot.reply_to(message, "Usage: /sslcheck <domain>\ne.g. /sslcheck example.com")
         return
     domain = domain.replace("https://", "").replace("http://", "").split("/")[0]
+    blocked = is_blocked_target(domain)
+    if blocked:
+        bot.reply_to(message, blocked)
+        return
     bot.send_chat_action(message.chat.id, "typing")
     try:
         ctx = ssl.create_default_context()
@@ -188,6 +198,9 @@ SECURITY_HEADERS = {
 def get_audit_text(url: str) -> str:
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
+    blocked = is_blocked_target(url)
+    if blocked:
+        return blocked
     try:
         r = requests.get(url, timeout=10, allow_redirects=True)
         headers = {k.lower(): v for k, v in r.headers.items()}
