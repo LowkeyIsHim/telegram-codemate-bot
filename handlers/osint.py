@@ -15,6 +15,7 @@ import requests
 import dns.resolver
 from core import bot, MAX_OUTPUT_CHARS
 from formatting import safe_reply
+from ssrf_guard import is_blocked_target
 
 
 def get_ipinfo_text(target: str) -> str:
@@ -128,6 +129,9 @@ def _fetch_headers(url):
 def get_headers_text(url: str) -> str:
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
+    blocked = is_blocked_target(url)
+    if blocked:
+        return blocked
     try:
         r, final_url, note = _fetch_headers(url)
         header_lines = "\n".join(f"{k}: {v}" for k, v in r.headers.items())
