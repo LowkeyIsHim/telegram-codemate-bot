@@ -9,6 +9,7 @@ or queries to third-party public archives, never active probing.
 import requests
 from core import bot, MAX_OUTPUT_CHARS
 from formatting import safe_reply
+from ssrf_guard import is_blocked_target
 
 TECH_SIGNATURES = {
     "WordPress": ["wp-content", "wp-includes", 'name="generator" content="WordPress'],
@@ -27,6 +28,9 @@ TECH_SIGNATURES = {
 def get_techstack_text(url: str) -> str:
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
+    blocked = is_blocked_target(url)
+    if blocked:
+        return blocked
     try:
         r = requests.get(url, timeout=10)
         headers = {k.lower(): v for k, v in r.headers.items()}
@@ -102,6 +106,9 @@ def wayback_cmd(message):
 
 def get_securitytxt_text(domain: str) -> str:
     clean_domain = domain.replace("https://", "").replace("http://", "").strip("/")
+    blocked = is_blocked_target(clean_domain)
+    if blocked:
+        return blocked
     urls = [
         f"https://{clean_domain}/.well-known/security.txt",
         f"https://{clean_domain}/security.txt",
@@ -157,6 +164,9 @@ def securitytxt_cmd(message):
 
 def get_robots_text(domain: str) -> str:
     base = domain if domain.startswith(("http://", "https://")) else f"https://{domain}"
+    blocked = is_blocked_target(base)
+    if blocked:
+        return blocked
     try:
         r = requests.get(f"{base}/robots.txt", timeout=10)
         if r.status_code != 200:
