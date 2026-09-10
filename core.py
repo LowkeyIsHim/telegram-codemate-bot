@@ -17,11 +17,18 @@ load_dotenv()  # reads the .env file sitting next to bot.py
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+OWNER_ID = os.environ.get("OWNER_ID")
 
 if not BOT_TOKEN:
     raise RuntimeError("Missing BOT_TOKEN. Check your .env file has BOT_TOKEN=... set.")
 if not GEMINI_API_KEY:
     raise RuntimeError("Missing GEMINI_API_KEY. Check your .env file has GEMINI_API_KEY=... set.")
+if not OWNER_ID:
+    raise RuntimeError(
+        "Missing OWNER_ID. This bot is owner-only — message @userinfobot on "
+        "Telegram to get your numeric user ID, then add OWNER_ID=<your id> to .env."
+    )
+OWNER_ID = int(OWNER_ID)
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -77,6 +84,9 @@ def _rate_limited_message_handler(*args, **kwargs):
         def wrapped(message, *a, **kw):
             user = getattr(message, "from_user", None)
             user_id = user.id if user else message.chat.id
+            if user_id != OWNER_ID:
+                bot.reply_to(message, "🔒 This bot is private and only usable by its owner.")
+                return
             if _is_rate_limited(user_id):
                 bot.reply_to(
                     message,
@@ -91,3 +101,24 @@ def _rate_limited_message_handler(*args, **kwargs):
 
 
 bot.message_handler = _rate_limited_message_handler
+
+_original_callback_query_handler = bot.callback_query_handler
+
+
+def _owner_only_callback_handler(*args, **kwargs):
+    register = _original_callback_query_handler(*args, **kwargs)
+
+    def decorator(func):
+        def wrapped(call, *a, **kw):
+            user = getattr(call, "from_user", None)
+            user_id = user.id if user else None
+            if user_id != OWNER_ID:
+                bot.answer_callback_query(call.id, text="This bot is private.", show_alert=True)
+                return
+            return func(call, *a, **kw)
+        return register(wrapped)
+
+    return decorator
+
+
+bot.callback_query_handler = _owner_only_callback_handler
