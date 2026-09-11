@@ -21,7 +21,8 @@ CATEGORIES = {
         "emoji": "⚡",
         "title": "Full Recon",
         "commands": [
-            ("/recon `<domain>`", "Automated WHOIS + DNS + subdomains + headers + audit, all in one"),
+            ("/recon `<domain>`", "WHOIS + DNS + subdomains + headers + tech stack + audit + robots + security.txt, all in one"),
+            ("/report `<domain>`", "Same 8-check pipeline, delivered as a downloadable Markdown report"),
         ],
     },
     "antiscam": {
@@ -39,6 +40,15 @@ CATEGORIES = {
             ("/wayback `<domain>`", "Find historical/forgotten URLs via the Internet Archive"),
             ("/securitytxt `<domain>`", "Find the org's responsible-disclosure contact"),
             ("/robots `<domain>`", "Check robots.txt for interesting disallowed paths"),
+        ],
+    },
+    "webtools": {
+        "emoji": "🛠",
+        "title": "Web Tools",
+        "commands": [
+            ("/jwt `<token>`", "Decode a JWT's header & payload"),
+            ("/encode `<url|html|hex> <encode|decode> <text>`", "Multi-format encoder/decoder"),
+            ("/exif", "Send an image as a File and get its metadata (GPS, camera, etc.)"),
         ],
     },
     "coding": {
