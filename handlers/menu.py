@@ -10,9 +10,7 @@ no need to touch the menu layout logic itself.
 
 import random
 from telebot import types
-from core import bot, AUTHOR_NAME, CONTACT_USERNAME, TIPS
-
-DIVIDER = "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
+from core import bot, AUTHOR_NAME, CONTACT_USERNAME, TIPS, DIVIDER
 
 # Each category: emoji, display title, and its (command, description) pairs.
 # To add a command to an existing category, just add a tuple here.
@@ -23,13 +21,6 @@ CATEGORIES = {
         "commands": [
             ("/recon `<domain>`", "WHOIS + DNS + subdomains + headers + tech stack + audit + robots + security.txt, all in one"),
             ("/report `<domain>`", "Same 8-check pipeline, delivered as a downloadable Markdown report"),
-        ],
-    },
-    "antiscam": {
-        "emoji": "🚨",
-        "title": "Anti-Scam",
-        "commands": [
-            ("/scamcheck `<url or message>`", "Check a link/message for scam & phishing red flags"),
         ],
     },
     "bugbounty": {
