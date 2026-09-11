@@ -13,7 +13,7 @@ automatically on any image file upload.
 """
 
 import io
-from core import bot
+from core import bot, DIVIDER
 from formatting import safe_reply
 
 INTERESTING_TAGS = ["Make", "Model", "DateTime", "Software", "ImageWidth", "ImageLength"]
@@ -69,7 +69,7 @@ def get_exif_text(image_bytes: bytes) -> str:
 
         if not lines:
             return "EXIF data present but no notable fields (camera/GPS) found."
-        return "📷 *Photo Metadata Found:*\n" + "\n".join(lines)
+        return f"📷 *Photo Metadata Found*\n{DIVIDER}\n\n" + "\n".join(lines)
     except Exception as e:
         return f"⚠️ Could not read image/EXIF data: {e}"
 
