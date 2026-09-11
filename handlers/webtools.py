@@ -9,7 +9,7 @@ import binascii
 import html
 import json
 import urllib.parse
-from core import bot
+from core import bot, DIVIDER
 from formatting import safe_reply
 
 
@@ -37,7 +37,7 @@ def get_jwt_text(token: str) -> str:
         )
 
     reply = (
-        "🔑 *JWT Decoded*\n\n"
+        "🔑 *JWT Decoded*\n" + DIVIDER + "\n\n"
         f"*Header:*\n```json\n{json.dumps(header, indent=2)}\n```\n"
         f"*Payload:*\n```json\n{json.dumps(payload, indent=2)}\n```\n"
         "_Signature not verified — this only decodes, it doesn't check validity._"
