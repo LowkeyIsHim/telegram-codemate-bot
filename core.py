@@ -35,6 +35,7 @@ bot = telebot.TeleBot(BOT_TOKEN)
 AUTHOR_NAME = "༺𝕷𝖔𝖜𝖐𝖊𝖞 𝕳𝖊'𝖘 𝕳𝖎𝖒༻"
 CONTACT_USERNAME = "Im_just_l0wkey"
 MAX_OUTPUT_CHARS = 3000
+DIVIDER = "▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰"
 
 TIPS = [
     "Use list comprehensions for cleaner loops: [x*2 for x in range(10)]",
