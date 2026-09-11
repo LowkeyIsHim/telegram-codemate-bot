@@ -13,7 +13,7 @@ below are thin wrappers that just add the Telegram-specific bits
 
 import requests
 import dns.resolver
-from core import bot, MAX_OUTPUT_CHARS
+from core import bot, MAX_OUTPUT_CHARS, DIVIDER
 from formatting import safe_reply
 from ssrf_guard import is_blocked_target
 
@@ -25,7 +25,7 @@ def get_ipinfo_text(target: str) -> str:
         if data.get("status") != "success":
             return f"⚠️ IP info lookup failed: {data.get('message', 'unknown target')}"
         return (
-            f"🌐 *IP Info: {data.get('query')}*\n"
+            f"🌐 *IP Info: {data.get('query')}*\n{DIVIDER}\n\n"
             f"Country: {data.get('country')} ({data.get('countryCode')})\n"
             f"Region: {data.get('regionName')}\n"
             f"City: {data.get('city')}\n"
@@ -75,12 +75,12 @@ def get_whois_text(domain: str) -> str:
             raw = getattr(data, "text", None) or str(data)
             raw = raw.strip()[:MAX_OUTPUT_CHARS] if raw else "No data returned."
             return (
-                f"📄 *WHOIS: {domain}*\n"
+                f"📄 *WHOIS: {domain}*\n{DIVIDER}\n\n"
                 "(This registry's format isn't fully parsed — showing raw data)\n"
                 f"```\n{raw}\n```"
             )
         return (
-            f"📄 *WHOIS: {domain}*\n"
+            f"📄 *WHOIS: {domain}*\n{DIVIDER}\n\n"
             f"Registrar: {data.registrar}\n"
             f"Created: {_format_whois_date(data.creation_date)}\n"
             f"Expires: {_format_whois_date(data.expiration_date)}\n"
@@ -135,7 +135,10 @@ def get_headers_text(url: str) -> str:
     try:
         r, final_url, note = _fetch_headers(url)
         header_lines = "\n".join(f"{k}: {v}" for k, v in r.headers.items())
-        reply = f"📡 *Headers for {final_url}* (status {r.status_code})\n```\n{header_lines}\n```"
+        reply = (
+            f"📡 *Headers for {final_url}*\n{DIVIDER}\n\n"
+            f"Status: {r.status_code}\n```\n{header_lines}\n```"
+        )
         if note:
             reply = note + "\n\n" + reply
         return reply
@@ -170,7 +173,7 @@ def get_subdomains_text(domain: str) -> str:
         if not found:
             return f"No subdomains found for {domain} in certificate logs."
         subs = sorted(found)[:50]
-        reply = f"🔎 *Subdomains for {domain}* ({len(found)} found, showing up to 50)\n```\n"
+        reply = f"🔎 *Subdomains for {domain}*\n{DIVIDER}\n\n({len(found)} found, showing up to 50)\n```\n"
         reply += "\n".join(subs) + "\n```"
         return reply
     except Exception as e:
@@ -210,7 +213,7 @@ def get_dns_text(domain: str) -> str:
 
     if not results:
         return f"No DNS records found for {domain}."
-    return f"🌐 *DNS Records: {domain}*\n\n" + "\n\n".join(results)
+    return f"🌐 *DNS Records: {domain}*\n{DIVIDER}\n\n" + "\n\n".join(results)
 
 
 @bot.message_handler(commands=["dns"])
