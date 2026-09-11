@@ -8,7 +8,7 @@ import socket
 import ssl
 from datetime import datetime, timezone
 import requests
-from core import bot
+from core import bot, DIVIDER
 from formatting import safe_reply
 from ssrf_guard import is_blocked_target
 
@@ -78,7 +78,7 @@ def cve_cmd(message):
                     severity = metrics[key][0]["cvssData"].get("baseScore", "N/A")
                     break
             blocks.append(f"*{cve_id}* (CVSS: {severity})\n{desc}")
-        safe_reply(message, "🛡 *CVE Results*\n\n" + "\n\n".join(blocks))
+        safe_reply(message, f"🛡 *CVE Results: {query}*\n{DIVIDER}\n\n" + "\n\n".join(blocks))
     except Exception as e:
         bot.reply_to(message, f"⚠️ CVE lookup failed: {e}")
 
@@ -121,9 +121,9 @@ def portscan_cmd(message):
                 open_ports.append(f"{port}/tcp  {name}")
 
     if not open_ports:
-        safe_reply(message, f"🔒 *Port scan: {host} ({ip})*\nNo common ports found open.")
+        safe_reply(message, f"🔒 *Port Scan: {host} ({ip})*\n{DIVIDER}\n\nNo common ports found open.")
         return
-    reply = f"🔓 *Port scan: {host} ({ip})*\n```\n" + "\n".join(open_ports) + "\n```"
+    reply = f"🔓 *Port Scan: {host} ({ip})*\n{DIVIDER}\n\n```\n" + "\n".join(open_ports) + "\n```"
     safe_reply(message, reply)
 
 
@@ -161,7 +161,7 @@ def sslcheck_cmd(message):
         san_list = ", ".join(v for _, v in san_entries) if san_entries else "N/A"
 
         reply = (
-            f"🔒 *SSL Certificate: {domain}*\n"
+            f"🔒 *SSL Certificate: {domain}*\n{DIVIDER}\n\n"
             f"Subject: {subject.get('commonName', 'N/A')}\n"
             f"Issuer: {issuer.get('organizationName', issuer.get('commonName', 'N/A'))}\n"
             f"Valid from: {not_before}\n"
@@ -228,7 +228,7 @@ def get_audit_text(url: str) -> str:
         grade = "A" if score >= total - 1 else "B" if score >= total * 0.66 else "C" if score >= total * 0.33 else "D"
 
         reply = (
-            f"🛡 *Security Audit: {url}*\n"
+            f"🛡 *Security Audit: {url}*\n{DIVIDER}\n\n"
             f"Grade: *{grade}*  ({score}/{total} protective headers present)\n\n"
         )
         if present:
