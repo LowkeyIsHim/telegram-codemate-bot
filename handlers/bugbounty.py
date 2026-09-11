@@ -7,7 +7,7 @@ or queries to third-party public archives, never active probing.
 """
 
 import requests
-from core import bot, MAX_OUTPUT_CHARS
+from core import bot, MAX_OUTPUT_CHARS, DIVIDER
 from formatting import safe_reply
 from ssrf_guard import is_blocked_target
 
@@ -54,7 +54,7 @@ def get_techstack_text(url: str) -> str:
 
         if not found:
             return f"No obvious technology fingerprints found for {url}."
-        return f"🔧 *Tech Stack: {url}*\n" + "\n".join(f"• {f}" for f in found)
+        return f"🔧 *Tech Stack: {url}*\n{DIVIDER}\n\n" + "\n".join(f"• {f}" for f in found)
     except Exception as e:
         return f"⚠️ Tech detection failed: {e}"
 
@@ -87,7 +87,7 @@ def get_wayback_text(domain: str) -> str:
         if len(data) <= 1:  # first row is just the header ["original"]
             return f"No archived URLs found for {domain} in the Wayback Machine."
         urls = [row[0] for row in data[1:]]
-        reply = f"🕰 *Wayback Machine: {domain}* ({len(urls)} URLs, capped at 50)\n```\n"
+        reply = f"🕰 *Wayback Machine: {domain}*\n{DIVIDER}\n\n({len(urls)} URLs, capped at 50)\n```\n"
         reply += "\n".join(urls) + "\n```"
         return reply
     except Exception as e:
@@ -134,7 +134,7 @@ def get_securitytxt_text(domain: str) -> str:
                 contact_str = "\n".join(f"• `{c}`" for c in contacts) if contacts else "• None specified"
 
                 return (
-                    f"🛡 *RFC 9116 Disclosure Info: `{clean_domain}`*\n\n"
+                    f"🛡 *RFC 9116 Disclosure Info: `{clean_domain}`*\n{DIVIDER}\n\n"
                     f"*Reporting Contacts:*\n{contact_str}\n\n"
                     f"• *Policy URL:* `{policy}`\n"
                     f"• *PGP Key:* `{encryption}`\n"
@@ -175,7 +175,7 @@ def get_robots_text(domain: str) -> str:
         if not content:
             return f"{base}/robots.txt exists but is empty."
         content = content[:MAX_OUTPUT_CHARS]
-        return f"🤖 *robots.txt: {base}*\n```\n{content}\n```"
+        return f"🤖 *robots.txt: {base}*\n{DIVIDER}\n\n```\n{content}\n```"
     except Exception as e:
         return f"⚠️ robots.txt fetch failed: {e}"
 
