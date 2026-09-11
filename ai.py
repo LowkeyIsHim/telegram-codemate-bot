@@ -1,6 +1,8 @@
 """
-ai.py — PyPal's AI personality (system prompt) and the Gemini API call
-that powers /explain and free-form chat.
+ai.py — Gemini API calls for PyPal (coding tutor persona) and the
+scam/phishing analyzer (a separate persona for /scamcheck). Both share
+one underlying _call_gemini() helper so the request/error-handling logic
+only exists in one place.
 """
 
 import requests
@@ -33,15 +35,14 @@ PLATFORM CONSTRAINT: Users can test code themselves via this bot's /run command,
 """
 
 
-def ask_pypal(prompt: str) -> str:
-    """Send a prompt to Gemini (free tier) with PyPal's personality and return the reply."""
-    model = "gemini-3.6-flash"
+def _call_gemini(prompt: str, system_prompt: str) -> str:
+    model = "gemini-3.5-flash"
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
         f"{model}:generateContent?key={GEMINI_API_KEY}"
     )
     payload = {
-        "system_instruction": {"parts": [{"text": PYPAL_SYSTEM_PROMPT}]},
+        "system_instruction": {"parts": [{"text": system_prompt}]},
         "contents": [{"parts": [{"text": prompt}]}],
     }
     try:
@@ -51,3 +52,8 @@ def ask_pypal(prompt: str) -> str:
         return data["candidates"][0]["content"]["parts"][0]["text"]
     except Exception as e:
         return f"⚠️ AI request failed: {e}"
+
+
+def ask_pypal(prompt: str) -> str:
+    """Send a prompt to Gemini with PyPal's coding-tutor personality."""
+    return _call_gemini(prompt, PYPAL_SYSTEM_PROMPT)
